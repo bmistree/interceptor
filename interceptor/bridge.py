@@ -51,6 +51,7 @@ class Bridge(object):
         
         try:
             self.to_connect_to_socket.close()
+        except:
             pass
 
 
