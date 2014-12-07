@@ -4,7 +4,9 @@ import threading
 class Bridge(object):
 
     def __init__(self,to_listen_on_host_port_pair,
-                 to_connect_to_host_port_pair):
+                 one_direction_plan,
+                 to_connect_to_host_port_pair,
+                 other_direction_plan):
         '''
         @param {HostPortPair} to_listen_on_host_port_pair ---
 
@@ -13,7 +15,9 @@ class Bridge(object):
         '''
         self.to_listen_on_host_port_pair = to_listen_on_host_port_pair
         self.to_connect_to_host_port_pair = to_connect_to_host_port_pair
-
+        self.one_direction_plan = one_direction_plan
+        self.other_direction_plan = other_direction_plan
+        
         self.to_listen_on_socket = None
         self.to_connect_to_socket = None
 
@@ -44,12 +48,16 @@ class Bridge(object):
 
         # now start forwarding messages between both sides
         pair_one = _SendReceiveSocketPair(
-            self.to_listen_on_socket,self.to_connect_to_socket)
+            self.to_listen_on_socket,self.to_connect_to_socket,
+            self.one_direction_plan)
+
         pair_one.start()
         pair_two = _SendReceiveSocketPair(
-            self.to_connect_to_socket,self.to_listen_on_socket)
+            self.to_connect_to_socket,self.to_listen_on_socket,
+            self.other_direction_plan)
         pair_two.start()
 
+        
     def bring_down_connection(self):
         '''
         Should only be called after both connections have already been
@@ -67,10 +75,11 @@ class Bridge(object):
 
 
 class _SendReceiveSocketPair(object):
-    def __init__(self,socket_to_listen_on, socket_to_send_to):
+    def __init__(self,socket_to_listen_on, socket_to_send_to,plan):
         self.socket_to_listen_on = socket_to_listen_on
         self.socket_to_send_to = socket_to_send_to
-
+        self.plan = plan
+        
     def start(self):
         t = threading.Thread(target=self.run)
         t.setDaemon(True)
@@ -79,7 +88,17 @@ class _SendReceiveSocketPair(object):
     def run(self):
         while True:
             try:
-                data = self.socket_to_listen_on.recv(1024)
-                self.socket_to_send_to.sendall(data)
-            except:
+                recv_data = self.socket_to_listen_on.recv(1024)
+                to_send_data = self.plan.recv(recv_data)
+                if to_send_data is None:
+                    self.socket_to_listen_on.close()
+                    self.socket_to_send_to.close()
+                    # FIXME: notify both sides to close sockets.
+                    break
+                
+                self.socket_to_send_to.sendall(to_send_data)
+            except Exception as inst:
+                print '\n\n'
+                print inst
+                print '\n\n'
                 break

@@ -10,7 +10,7 @@ sys.path.append(os.path.join(FILE_DIR,'..',))
 
 from interceptor.bridge import Bridge
 from interceptor.util import HostPortPair
-
+from interceptor.plan import PassThroughPlan
 
 TEST_NAME = 'PASS THROUGH TEST'
 
@@ -48,7 +48,8 @@ def run():
     
     # now, create a bridge
     bridge = Bridge(
-        interposition_host_port_pair,to_connect_to_host_port_pair)
+        interposition_host_port_pair,PassThroughPlan(),
+        to_connect_to_host_port_pair,PassThroughPlan())
     bridge.non_blocking_connection_setup()
     
     # now, try connecting to port on bridge.
