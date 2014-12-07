@@ -37,7 +37,8 @@ class Bridge(object):
         s.listen(1)
         self.to_listen_on_socket, addr = s.accept()
 
-        to_connect_to_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.to_connect_to_socket = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM)
         self.to_connect_to_socket.connect(
             self.to_connect_to_host_port_pair.host_port_tuple())
 
@@ -72,13 +73,13 @@ class _SendReceiveSocketPair(object):
 
     def start(self):
         t = threading.Thread(target=self.run)
-        t.setDaemon(true)
+        t.setDaemon(True)
         t.start()
         
     def run(self):
         while True:
             try:
                 data = self.socket_to_listen_on.recv(1024)
-                self.socket_to_send_to.write(data)
+                self.socket_to_send_to.sendall(data)
             except:
                 break

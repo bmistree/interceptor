@@ -61,7 +61,7 @@ def run():
     for i in range(0,AMOUNT_OF_DATA_TO_SEND):
         to_send = str(i)
         expected_data_on_other_side += to_send
-        sending_socket.write(expected_data_on_other_side)
+        sending_socket.sendall(expected_data_on_other_side)
 
     time.sleep(1)
 
