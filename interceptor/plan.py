@@ -26,3 +26,7 @@ class ConstantDelayPlan(Plan):
     def recv(self,received_data):
         time.sleep(self.seconds_to_delay_before_forwarding)
         return recevied_data
+
+class DropPlan(Plan):
+    def recv(self,received_data):
+        return ''

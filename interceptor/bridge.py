@@ -98,7 +98,4 @@ class _SendReceiveSocketPair(object):
                 
                 self.socket_to_send_to.sendall(to_send_data)
             except Exception as inst:
-                print '\n\n'
-                print inst
-                print '\n\n'
                 break
