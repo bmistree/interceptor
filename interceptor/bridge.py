@@ -17,10 +17,20 @@ class Bridge(object):
         self.to_listen_on_socket = None
         self.to_connect_to_socket = None
 
+        
+    def non_blocking_connection_setup(self):
+        '''
+        Calls connection_setup in separate thread.
+        '''
+        t = threading.Thread(target = self.connection_setup)
+        t.setDaemon(True)
+        t.start()
+        
+        
     def connection_setup(self):
         '''
         Listen for a connection.  When receive connection, try to
-        connect to other side.
+        connect to other side.  Blocking.
         '''
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(self.to_listen_on_host_port_pair.host_port_tuple())

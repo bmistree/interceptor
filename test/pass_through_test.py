@@ -4,6 +4,7 @@ import os
 import sys
 import socket
 import threading
+import time
 FILE_DIR = os.path.dirname( os.path.abspath(__file__))
 sys.path.append(os.path.join(FILE_DIR,'..',))
 
@@ -18,7 +19,6 @@ def run_and_print():
     if not run():
         succeed_string = 'FAILED'
     
-
     print ('\n%(test_name)s: %(succeed)s\n' %
            {'test_name': TEST_NAME,
             'succeed': succeed_string})
@@ -44,16 +44,17 @@ def run():
     # start a thread listening on connection
     listener_connection = ListenerConnection(to_connect_to_host_port_pair)
     listener_connection.start()
-
+    time.sleep(1)
+    
     # now, create a bridge
     bridge = Bridge(
         interposition_host_port_pair,to_connect_to_host_port_pair)
-    bridge.connection_setup()
-
+    bridge.non_blocking_connection_setup()
+    
     # now, try connecting to port on bridge.
     sending_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sending_socket.connect(interposition_host_port_pair.host_port_tuple())
-
+    
     # now, send data to other side
     AMOUNT_OF_DATA_TO_SEND = 500
     expected_data_on_other_side = ''
