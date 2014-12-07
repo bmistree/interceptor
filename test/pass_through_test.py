@@ -61,13 +61,16 @@ def run():
     for i in range(0,AMOUNT_OF_DATA_TO_SEND):
         to_send = str(i)
         expected_data_on_other_side += to_send
-        sending_socket.sendall(expected_data_on_other_side)
+        sending_socket.sendall(to_send)
 
     time.sleep(1)
 
     # check that other side got the expected data
     
     if expected_data_on_other_side != listener_connection.read_data:
+        print ('\nExpected: %(expected)s, \nReceived: %(received)s\n' %
+               { 'expected': expected_data_on_other_side,
+                 'received': listener_connection.read_data})
         return False
     
     return True
@@ -91,7 +94,7 @@ class ListenerConnection(threading.Thread):
         while True:
             data = to_listen_on_socket.recv(1024)
             self.read_data += data
-
+            
 
 if __name__ == '__main__':
     run_and_print()
