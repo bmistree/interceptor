@@ -10,6 +10,11 @@ class Plan(object):
         send to other side.  If returns None, then close entire
         connection.
         '''
+    def notify_closed(self):
+        '''
+        Tell this plan that the connection it was forwarding for was
+        closed.
+        '''
 
 class PassThroughPlan(Plan):
     def recv(self,received_data):

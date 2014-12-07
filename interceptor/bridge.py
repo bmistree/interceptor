@@ -49,12 +49,12 @@ class Bridge(object):
         # now start forwarding messages between both sides
         pair_one = _SendReceiveSocketPair(
             self.to_listen_on_socket,self.to_connect_to_socket,
-            self.one_direction_plan)
+            self.one_direction_plan,self)
 
         pair_one.start()
         pair_two = _SendReceiveSocketPair(
             self.to_connect_to_socket,self.to_listen_on_socket,
-            self.other_direction_plan)
+            self.other_direction_plan,self)
         pair_two.start()
 
         
@@ -63,6 +63,9 @@ class Bridge(object):
         Should only be called after both connections have already been
         made and started.  And should only be called once.
         '''
+        self.one_direction_plan.notify_closed()
+        self.other_direction_plan.notify_closed()
+        
         try:
             self.to_listen_on_socket.close()
         except:
@@ -73,12 +76,20 @@ class Bridge(object):
         except:
             pass
 
-
+    def down_up_connection(self):
+        '''
+        Bring connection down and then bring it up again.
+        '''
+        self.bring_down_connection()
+        self.non_blocking_connection_setup()
+        
+        
 class _SendReceiveSocketPair(object):
-    def __init__(self,socket_to_listen_on, socket_to_send_to,plan):
+    def __init__(self,socket_to_listen_on, socket_to_send_to,plan,bridge):
         self.socket_to_listen_on = socket_to_listen_on
         self.socket_to_send_to = socket_to_send_to
         self.plan = plan
+        self.bridge = bridge
         
     def start(self):
         t = threading.Thread(target=self.run)
@@ -91,11 +102,10 @@ class _SendReceiveSocketPair(object):
                 recv_data = self.socket_to_listen_on.recv(1024)
                 to_send_data = self.plan.recv(recv_data)
                 if to_send_data is None:
-                    self.socket_to_listen_on.close()
-                    self.socket_to_send_to.close()
-                    # FIXME: notify both sides to close sockets.
+                    self.bridge.non_blocking_down_up_connection()
                     break
                 
                 self.socket_to_send_to.sendall(to_send_data)
             except Exception as inst:
+                self.bridge.non_blocking_down_up_connection()
                 break
