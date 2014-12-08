@@ -46,14 +46,13 @@ class PlanType(object):
 
     
 class Plan(object):
-    def recv(self,received_data):
+    def recv(self,received_data,socket_to_send_data_to):
         '''
         Called when we read data from one socket and returns data to
         send to other socket.
-        
-        @returns {string or None} --- If string, returns some data to
-        send to other side.  If returns None, then close entire
-        connection.
+
+        @returns {boolean} --- True if should close socket.  False
+        otherwise.
         '''
     def notify_closed(self):
         '''
@@ -62,22 +61,85 @@ class Plan(object):
         '''
 
 class PassThroughPlan(Plan):
-    def recv(self,received_data):
-        return received_data
+    def recv(self,received_data,socket_to_send_data_to):
+        socket_to_send_data_to.sendall(received_data)
+        return False
+
+    
+class DropPlan(Plan):
+    def recv(self,received_data,socket_to_send_data_to):
+        return False
+
+class DelayDataElement(object):
+    def __init__(self,data,socket,received_time_seconds):
+        self.data = data
+        self.socket = socket
+        self.received_time_seconds = received_time_seconds
+
+    def send_data(self):
+        self.socket.sendall(self.data)
         
-class ConstantDelayPlan(Plan):
+    
+class DelayPlan(Plan):
+    def __init__(self,seconds_to_delay_before_forwarding,
+                 sending_thread_target):
+        '''
+        @param {float} seconds_to_delay_before_forwarding
+        '''
+        self.seconds_to_delay_before_forwarding = (
+            seconds_to_delay_before_forwarding)
+        # contains all data received so far, in order and the socket
+        # to send the data out on when ready.
+        self.data_queue = Queue.Queue()
+
+        t = threading.Thread(target=sending_thread_target)
+        t.setDaemon(True)
+        t.start()
+
+    def notify_closed(self):
+        with self.data_queue.queue.mutex:
+            self.data_queue.queue.clear()
+        
+    def recv(self,received_data,socket_to_send_data_to):
+        self.data_queue.put(
+            DelayDataElement(
+                received_data,socket_to_send_data_to,
+                # FIXME: assuming time.time will give me better than
+                # second accuracy.
+                time.time()))
+        return False
+
+class ConstantDelayPlan(DelayPlan):
     def __init__(self,seconds_to_delay_before_forwarding):
         '''
         @param {float} seconds_to_delay_before_forwarding
         '''
         self.seconds_to_delay_before_forwarding = (
             seconds_to_delay_before_forwarding)
+        super(ConstantDelayPlan,self).__init__(self.sending_thread)
 
-    def recv(self,received_data):
-        time.sleep(self.seconds_to_delay_before_forwarding)
-        return recevied_data
+    def sending_thread(self):
+        while True:
+            delay_data_element = self.data_queue.get()            
+            current_time = time.time()
+            
+            time_should_send = (
+                self.seconds_to_delay_before_forwarding +
+                delay_data_element.received_time_seconds)
 
-class RandomDelayPlan(Plan):
+            time_to_sleep = time_should_send - current_time
+            if time_to_sleep > 0:
+                time.sleep(time_to_sleep)
+
+            try:
+                # socket is closed.  everything will eventually shut
+                # down on its own.
+                delay_data_element.send_data()
+            except:
+                pass
+
+    
+class RandomDelayPlan(DelayPlan):
     def __init__(self,uniform_lower_bound_seconds,
                  uniform_upper_bound_seconds):
         '''
@@ -87,13 +149,26 @@ class RandomDelayPlan(Plan):
         self.uniform_lower_bound_seconds = uniform_lower_bound_seconds
         self.uniform_upper_bound_seconds = uniform_upper_bound_seconds
 
-    def recv(self):
-        time_to_wait = random.uniform(
-            self.uniform_lower_bound_seconds,self.uniform_upper_bound_seconds)
-        time.sleep(time_to_wait)
-        return time_to_wait
+        super(ConstantDelayPlan,self).__init__(self.sending_thread)
 
-    
-class DropPlan(Plan):
-    def recv(self,received_data):
-        return ''
+    def sending_thread(self):
+        while True:
+            delay_data_element = self.data_queue.get()            
+            current_time = time.time()
+
+            seconds_to_delay_before_forwarding = random.uniform(
+                self.uniform_lower_bound_seconds,self.uniform_upper_bound_seconds)
+            time_should_send = (
+                seconds_to_delay_before_forwarding +
+                delay_data_element.received_time_seconds)
+
+            time_to_sleep = time_should_send - current_time
+            if time_to_sleep > 0:
+                time.sleep(time_to_sleep)
+
+            try:
+                # socket is closed.  everything will eventually shut
+                # down on its own.
+                delay_data_element.send_data()
+            except:
+                pass

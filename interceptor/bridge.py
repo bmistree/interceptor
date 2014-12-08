@@ -100,12 +100,12 @@ class _SendReceiveSocketPair(object):
         while True:
             try:
                 recv_data = self.socket_to_listen_on.recv(1024)
-                to_send_data = self.plan.recv(recv_data)
-                if to_send_data is None:
-                    self.bridge.non_blocking_down_up_connection()
+                close_sockets = self.plan.recv(recv_data,self.socket_to_send_to)
+                if close_sockets:
+                    self.bridge.down_up_connection()
                     break
-                
-                self.socket_to_send_to.sendall(to_send_data)
+
             except Exception as inst:
-                self.bridge.non_blocking_down_up_connection()
+                print inst
+                self.bridge.down_up_connection()
                 break
