@@ -1,6 +1,50 @@
 import time
 import random
+import argparse
 
+def plan_from_args(plan_type,additional_args):
+    '''
+    @param {PlanType} plan_type
+    @param {dict} additional_args --- Additional arguments for loading
+    plan type.
+
+    @throws argparse.ArgumentTypeError if unkown plan type or missing
+    fields.
+    '''
+    if plan_type == PlanType.PASS_THROUGH_PLAN:
+        return PassThroughPlan()
+    elif plan_type == PlanType.CONSTANT_DELAY_PLAN:
+        seconds_to_delay = additional_args.get('delay_seconds',None)
+        if seconds_to_delay is None:
+            raise argparse.ArgumentTypeError(
+                'Error: delay plan type requires argument delay_seconds ' +
+                'to be specified.')
+        seconds_to_delay = float(seconds_to_delay)
+        return ConstantDelayPlan(seconds_to_delay)
+    elif plan_type == PlanType.RANDOM_DELAY_PLAN:
+        lower_bound = additional_args.get('lower_delay_seconds',None)
+        upper_bound = additional_args.get('upper_delay_seconds',None)
+        if (lower_bound is None) or (upper_bound is None):
+            raise argparse.ArgumentTypeError(
+                'Error: delay plan type requires argument ' +
+                'lower_delay_seconds and upper_delay_seconds ' +
+                'to be specified.')
+        lower_bound = float(lower_bound)
+        upper_bound = float(upper_bound)
+        return RandomDelayPlan(lower_bound,upper_bound)
+    elif plan_type == PlanType.DROP_PLAN:
+        return DropPlan()
+
+    raise argparse.ArgumentTypeError('Unknown plan type')
+
+    
+class PlanType(object):
+    PASS_THROUGH_PLAN = 'pass_through'
+    CONSTANT_DELAY_PLAN = 'constant_delay'
+    RANDOM_DELAY_PLAN = 'random_delay'
+    DROP_PLAN = 'drop'
+
+    
 class Plan(object):
     def recv(self,received_data):
         '''
