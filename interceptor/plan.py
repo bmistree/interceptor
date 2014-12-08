@@ -34,7 +34,15 @@ def plan_from_args(plan_type,additional_args):
         return RandomDelayPlan(lower_bound,upper_bound)
     elif plan_type == PlanType.DROP_PLAN:
         return DropPlan()
+    elif plan_type == PlanType.RANDOM_FAIL_PLAN:
+        failure_probability = additional_args.get('failure_probability',None)
+        if failure_probability is None:
+            raise argparse.ArgumentTypeError(
+                'Error: random fail plan requires argument ' +
+                'failure_probability argument to be specified.')
 
+        return RandomFailPlan(float(failure_probability))
+    
     raise argparse.ArgumentTypeError('Unknown plan type')
 
     
@@ -43,6 +51,7 @@ class PlanType(object):
     CONSTANT_DELAY_PLAN = 'constant_delay'
     RANDOM_DELAY_PLAN = 'random_delay'
     DROP_PLAN = 'drop'
+    RANDOM_FAIL_PLAN = 'random_fail_plan'
 
     
 class Plan(object):
@@ -157,7 +166,8 @@ class RandomDelayPlan(DelayPlan):
             current_time = time.time()
 
             seconds_to_delay_before_forwarding = random.uniform(
-                self.uniform_lower_bound_seconds,self.uniform_upper_bound_seconds)
+                self.uniform_lower_bound_seconds,
+                self.uniform_upper_bound_seconds)
             time_should_send = (
                 seconds_to_delay_before_forwarding +
                 delay_data_element.received_time_seconds)
@@ -172,3 +182,16 @@ class RandomDelayPlan(DelayPlan):
                 delay_data_element.send_data()
             except:
                 pass
+
+class RandomFailPlan(Plan):
+    def __init__(self,failure_probability):
+        self.failure_probability = failure_probability
+        
+    def recv(self,received_data,socket_to_send_data_to):
+
+        self.socket_to_send_data_to.sendall(received_data)
+        
+        if random.random() < failure_probability:
+            return True
+        
+        return False
