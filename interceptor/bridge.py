@@ -2,6 +2,7 @@ import socket
 import threading
 import select
 import os
+import time
 
 class Bridge(object):
 
@@ -46,6 +47,8 @@ class Bridge(object):
         Listen for a connection.  When receive connection, try to
         connect to other side.  Blocking.
         '''
+        print 'Connection setup'
+        
         pipe = os.pipe()
         read_pipe_listen_on = pipe[0]
         self.to_listen_on_socket_signal_pipe = pipe[1]
@@ -55,7 +58,19 @@ class Bridge(object):
         self.to_connect_to_socket_signal_pipe = pipe[1]
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(self.to_listen_on_host_port_pair.host_port_tuple())
+
+        import random
+        nonce = random.random()
+        
+        while True:
+            try:
+                s.bind(self.to_listen_on_host_port_pair.host_port_tuple())
+                break
+            except:
+                # may need to wait for close wait state.
+                time.sleep(1)
+                print 'Retrying to bind on ' + str(nonce)
+        
         s.listen(1)
         self.to_listen_on_socket, addr = s.accept()
 
@@ -95,19 +110,21 @@ class Bridge(object):
         try:
             self.to_listen_on_socket.close()
         except:
-            pass
+            print 'Exception closing to listen on socket'
+        
         try:
             os.write(self.to_listen_on_socket_signal_pipe,'x')
             os.close(self.to_listen_on_socket_signal_pipe)
             print 'Wrote socket 1'
         except Exception as inst:
-            print '\nException closing pipe'
+            print 'Exception closing pipe 1'
             print inst
             pass
         
         try:
             self.to_connect_to_socket.close()
         except Exception as inst:
+            print 'Exception closing to connect to socket'
             pass
 
         try:
@@ -115,7 +132,8 @@ class Bridge(object):
             os.close(self.to_connect_to_socket_signal_pipe)
             print 'Wrote socket 2'
         except:
-            pass
+            print 'Exception closing pipe 2'
+            print inst
         
 
     def down_up_connection(self,phase_number):
@@ -126,6 +144,9 @@ class Bridge(object):
             if phase_number != self.last_connection_phase_number:
                 return
 
+            self.last_connection_phase_number += 1
+            
+            print '\nDown up connection\n'
             self.bring_down_connection()
             self.non_blocking_connection_setup()
         
@@ -148,22 +169,28 @@ class _SendReceiveSocketPair(object):
         t.start()
         
     def run(self):
-        while True:
-            (input_ready,_,_) = select.select(
-                [self.socket_to_listen_on,self.close_on_selector_pipe],
-                [],[])
-
-            if self.close_on_selector_pipe in input_ready:
-                self.bridge.down_up_connection(self.connection_phase_number)
-                break
-
-            if self.socket_to_listen_on in input_ready:
-                recv_data = self.socket_to_listen_on.recv(1024)
-                if len(recv_data) == 0:
+        try:
+            while True:
+                (input_ready,_,_) = select.select(
+                    [self.socket_to_listen_on,self.close_on_selector_pipe],
+                    [],[])
+                
+                if self.close_on_selector_pipe in input_ready:
                     self.bridge.down_up_connection(self.connection_phase_number)
                     break
 
-            close_sockets = self.plan.recv(recv_data,self.socket_to_send_to)
-            if close_sockets:
-                self.bridge.down_up_connection(self.connection_phase_number)
-                break
+                if self.socket_to_listen_on in input_ready:
+                    recv_data = self.socket_to_listen_on.recv(1024)
+                    if len(recv_data) == 0:
+                        self.bridge.down_up_connection(self.connection_phase_number)
+                        break
+
+                    close_sockets = self.plan.recv(recv_data,self.socket_to_send_to)
+                    if close_sockets:
+                        self.bridge.down_up_connection(self.connection_phase_number)
+                        break
+        except:
+            # can happen if someone closes the selctor pipe before we
+            # go into select.
+            print 'Got an exception for ' + str(self.connection_phase_number)
+            pass
