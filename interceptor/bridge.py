@@ -3,6 +3,7 @@ import threading
 import select
 import os
 import time
+import struct
 
 class Bridge(object):
 
@@ -68,11 +69,22 @@ class Bridge(object):
                 
         s.listen(1)
         self.to_listen_on_socket, addr = s.accept()
-        
+        l_onoff = 1
+        l_linger = 0
+        self.to_listen_on_socket.setsockopt(
+            socket.SOL_SOCKET, socket.SO_LINGER,
+            struct.pack('ii', l_onoff, l_linger))
+
+                
         self.to_connect_to_socket = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM)
         self.to_connect_to_socket.connect(
             self.to_connect_to_host_port_pair.host_port_tuple())
+
+        
+        self.to_connect_to_socket.setsockopt(
+            socket.SOL_SOCKET, socket.SO_LINGER,
+            struct.pack('ii', l_onoff, l_linger))
         
         with self.last_connection_lock:
             self.last_connection_phase_number = (
@@ -180,8 +192,12 @@ class _SendReceiveSocketPair(object):
                     if close_sockets:
                         self.bridge.down_up_connection(self.connection_phase_number)
                         break
-        except:
+        except Exception as inst:
             # can happen if someone closes the selctor pipe before we
             # go into select.
             print 'Got an exception for ' + str(self.connection_phase_number)
+            print '\n'
+            print inst
+            print '\n'
+            print '\n\n'
             pass
