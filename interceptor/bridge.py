@@ -21,6 +21,12 @@ class Bridge(object):
         self.to_listen_on_socket = None
         self.to_connect_to_socket = None
 
+        # we want to guarantee that we bring a set of connections down
+        # just once for a pair of to_listen_on_socket and
+        # to_connect_to_socket.
+        self.last_connection_lock = threading.RLock()
+        self.last_connection_phase_number = 0
+
         
     def non_blocking_connection_setup(self):
         '''
@@ -46,16 +52,22 @@ class Bridge(object):
         self.to_connect_to_socket.connect(
             self.to_connect_to_host_port_pair.host_port_tuple())
 
-        # now start forwarding messages between both sides
-        pair_one = _SendReceiveSocketPair(
-            self.to_listen_on_socket,self.to_connect_to_socket,
-            self.one_direction_plan,self)
+        with self.last_connection_lock:
+            self.last_connection_phase_number = (
+                self.last_connection_phase_number + 1)
+        
+            # now start forwarding messages between both sides
+            pair_one = _SendReceiveSocketPair(
+                self.to_listen_on_socket,self.to_connect_to_socket,
+                self.one_direction_plan,self,
+                self.last_connection_phase_number)
 
-        pair_one.start()
-        pair_two = _SendReceiveSocketPair(
-            self.to_connect_to_socket,self.to_listen_on_socket,
-            self.other_direction_plan,self)
-        pair_two.start()
+            pair_one.start()
+            pair_two = _SendReceiveSocketPair(
+                self.to_connect_to_socket,self.to_listen_on_socket,
+                self.other_direction_plan,self,
+                self.last_connection_phase_number)
+            pair_two.start()
 
         
     def bring_down_connection(self):
@@ -76,16 +88,21 @@ class Bridge(object):
         except:
             pass
 
-    def down_up_connection(self):
+    def down_up_connection(self,phase_number):
         '''
         Bring connection down and then bring it up again.
         '''
-        self.bring_down_connection()
-        self.non_blocking_connection_setup()
+        with self.last_connection_lock:
+            if phase_number != self.last_connection_phase_number:
+                return
+
+            self.bring_down_connection()
+            self.non_blocking_connection_setup()
         
         
 class _SendReceiveSocketPair(object):
-    def __init__(self,socket_to_listen_on, socket_to_send_to,plan,bridge):
+    def __init__(self,socket_to_listen_on, socket_to_send_to,plan,bridge,
+                 connection_phase_number):
         self.socket_to_listen_on = socket_to_listen_on
         self.socket_to_send_to = socket_to_send_to
         self.plan = plan
@@ -102,10 +119,10 @@ class _SendReceiveSocketPair(object):
                 recv_data = self.socket_to_listen_on.recv(1024)
                 close_sockets = self.plan.recv(recv_data,self.socket_to_send_to)
                 if close_sockets:
-                    self.bridge.down_up_connection()
+                    self.bridge.down_up_connection(self.connection_phase_number)
                     break
 
             except Exception as inst:
                 print inst
-                self.bridge.down_up_connection()
+                self.bridge.down_up_connection(self.connection_phase_number)
                 break
