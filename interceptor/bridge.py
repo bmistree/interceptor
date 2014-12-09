@@ -107,6 +107,7 @@ class _SendReceiveSocketPair(object):
         self.socket_to_send_to = socket_to_send_to
         self.plan = plan
         self.bridge = bridge
+        self.connection_phase_number = connection_phase_number
         
     def start(self):
         t = threading.Thread(target=self.run)
