@@ -47,8 +47,6 @@ class Bridge(object):
         Listen for a connection.  When receive connection, try to
         connect to other side.  Blocking.
         '''
-        print 'Connection setup'
-        
         pipe = os.pipe()
         read_pipe_listen_on = pipe[0]
         self.to_listen_on_socket_signal_pipe = pipe[1]
@@ -60,20 +58,17 @@ class Bridge(object):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         import random
-        nonce = random.random()
-        
         while True:
             try:
                 s.bind(self.to_listen_on_host_port_pair.host_port_tuple())
                 break
             except:
                 # may need to wait for close wait state.
-                time.sleep(1)
-                print 'Retrying to bind on ' + str(nonce)
-        
+                time.sleep(.5)
+                
         s.listen(1)
         self.to_listen_on_socket, addr = s.accept()
-
+        
         self.to_connect_to_socket = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM)
         self.to_connect_to_socket.connect(
@@ -115,11 +110,9 @@ class Bridge(object):
         try:
             os.write(self.to_listen_on_socket_signal_pipe,'x')
             os.close(self.to_listen_on_socket_signal_pipe)
-            print 'Wrote socket 1'
         except Exception as inst:
             print 'Exception closing pipe 1'
             print inst
-            pass
         
         try:
             self.to_connect_to_socket.close()
@@ -130,7 +123,6 @@ class Bridge(object):
         try:
             os.write(self.to_connect_to_socket_signal_pipe,'x')
             os.close(self.to_connect_to_socket_signal_pipe)
-            print 'Wrote socket 2'
         except:
             print 'Exception closing pipe 2'
             print inst
@@ -145,8 +137,7 @@ class Bridge(object):
                 return
 
             self.last_connection_phase_number += 1
-            
-            print '\nDown up connection\n'
+
             self.bring_down_connection()
             self.non_blocking_connection_setup()
         
