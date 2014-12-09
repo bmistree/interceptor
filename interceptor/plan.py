@@ -189,7 +189,7 @@ class RandomFailPlan(Plan):
         
     def recv(self,received_data,socket_to_send_data_to):
         socket_to_send_data_to.sendall(received_data)
-        if random.random() < failure_probability:
+        if random.random() < self.failure_probability:
             return True
         
         return False
