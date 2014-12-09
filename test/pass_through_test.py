@@ -94,6 +94,8 @@ class ListenerConnection(threading.Thread):
 
         while True:
             data = to_listen_on_socket.recv(1024)
+            if len(data) == 0:
+                break
             self.read_data += data
             
 

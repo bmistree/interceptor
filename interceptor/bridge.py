@@ -51,7 +51,7 @@ class Bridge(object):
             socket.AF_INET, socket.SOCK_STREAM)
         self.to_connect_to_socket.connect(
             self.to_connect_to_host_port_pair.host_port_tuple())
-
+        
         with self.last_connection_lock:
             self.last_connection_phase_number = (
                 self.last_connection_phase_number + 1)
@@ -77,7 +77,7 @@ class Bridge(object):
         '''
         self.one_direction_plan.notify_closed()
         self.other_direction_plan.notify_closed()
-        
+
         try:
             self.to_listen_on_socket.close()
         except:
@@ -85,8 +85,11 @@ class Bridge(object):
         
         try:
             self.to_connect_to_socket.close()
-        except:
-            pass
+        except Exception as inst:
+            print '\nGot this exception when closing to connect to socket'
+            print inst
+            print '\n\n'
+
 
     def down_up_connection(self,phase_number):
         '''
@@ -120,6 +123,7 @@ class _SendReceiveSocketPair(object):
                 recv_data = self.socket_to_listen_on.recv(1024)
                 close_sockets = self.plan.recv(recv_data,self.socket_to_send_to)
                 if close_sockets:
+                    print 'About to try to close sockets'
                     self.bridge.down_up_connection(self.connection_phase_number)
                     break
 
