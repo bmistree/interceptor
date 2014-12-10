@@ -33,6 +33,8 @@ class Bridge(object):
         self.last_connection_lock = threading.RLock()
         self.last_connection_phase_number = 0
 
+        self.connection_setup_times = 0
+        self.bound_socket = None
         
     def non_blocking_connection_setup(self):
         '''
@@ -48,6 +50,8 @@ class Bridge(object):
         Listen for a connection.  When receive connection, try to
         connect to other side.  Blocking.
         '''
+        # print '\nInterceptor connection setup\n'
+        
         pipe = os.pipe()
         read_pipe_listen_on = pipe[0]
         self.to_listen_on_socket_signal_pipe = pipe[1]
@@ -56,19 +60,17 @@ class Bridge(object):
         read_pipe_connect_to = pipe[0]
         self.to_connect_to_socket_signal_pipe = pipe[1]
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.connection_setup_times == 0:
+            self.connection_setup_times += 1
+            self.bound_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.bound_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.bound_socket.bind(self.to_listen_on_host_port_pair.host_port_tuple())
+        
+        # print 'Interceptor listening ' + str(self)
+        self.bound_socket.listen(1)
+        self.to_listen_on_socket, addr = self.bound_socket.accept()
+        # print 'Interceptor accepted ' + str(self)
 
-        import random
-        while True:
-            try:
-                s.bind(self.to_listen_on_host_port_pair.host_port_tuple())
-                break
-            except:
-                # may need to wait for close wait state.
-                time.sleep(.5)
-                
-        s.listen(1)
-        self.to_listen_on_socket, addr = s.accept()
         l_onoff = 1
         l_linger = 0
         self.to_listen_on_socket.setsockopt(
@@ -76,11 +78,25 @@ class Bridge(object):
             struct.pack('ii', l_onoff, l_linger))
 
                 
-        self.to_connect_to_socket = socket.socket(
-            socket.AF_INET, socket.SOCK_STREAM)
-        self.to_connect_to_socket.connect(
-            self.to_connect_to_host_port_pair.host_port_tuple())
-
+        # print (
+        #     '\nInterceptor trying to connect to ' +
+        #     str(self.to_connect_to_host_port_pair.host_port_tuple()) +
+        #     ' '  + str(self))
+            
+        while True:
+            try:
+                self.to_connect_to_socket = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM)
+                self.to_connect_to_socket.connect(
+                    self.to_connect_to_host_port_pair.host_port_tuple())
+                break
+            except Exception as inst:
+                time.sleep(.5)
+            
+        # print (
+        #     '\nInterceptor connected ' +
+        #     str(self.to_connect_to_host_port_pair.host_port_tuple()) +
+        #     ' '  + str(self))
         
         self.to_connect_to_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_LINGER,
@@ -116,6 +132,7 @@ class Bridge(object):
 
         try:
             self.to_listen_on_socket.close()
+            print str(self) + ' closed ' + str(self.to_listen_on_socket)
         except:
             print 'Exception closing to listen on socket'
         
@@ -192,12 +209,13 @@ class _SendReceiveSocketPair(object):
                     if close_sockets:
                         self.bridge.down_up_connection(self.connection_phase_number)
                         break
+                    
         except Exception as inst:
             # can happen if someone closes the selctor pipe before we
             # go into select.
             print 'Got an exception for ' + str(self.connection_phase_number)
-            print '\n'
             print inst
-            print '\n'
-            print '\n\n'
-            pass
+            print (
+                'On bridge ' + str(self.bridge) + ' for socket ' +
+                str(self.socket_to_send_to))
+
