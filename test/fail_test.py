@@ -86,8 +86,12 @@ def run():
             sending_socket.close()
 
     time.sleep(5)
-            
-    return True
+
+    if len(listener_connection.read_data) > 100:
+        # if we read a reasonable amount of data in that time, return
+        # true.
+        return True
+    return False
 
 
 class ListenerConnection(threading.Thread):

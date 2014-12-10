@@ -184,14 +184,23 @@ class RandomDelayPlan(DelayPlan):
             except:
                 pass
 
-class RandomFailPlan(Plan):
-    def __init__(self,failure_probability):
+class RandomFailConstantDelayPlan(Plan):
+    def __init__(self,failure_probability,seconds_to_wait_to_fail):
+        '''
+        @param {float} failure_probability, seconds_to_wait_to_fail
+        '''
         self.failure_probability = failure_probability
+        self.seconds_to_wait_to_fail = seconds_to_wait_to_fail
         
     def recv(self,received_data,socket_to_send_data_to):
         socket_to_send_data_to.sendall(received_data)
         if random.random() < self.failure_probability:
             # fail instantly
-            return 0
+            return self.seconds_to_wait_to_fail
         
         return False
+
+            
+class RandomFailPlan(RandomFailConstantDelayPlan):
+    def __init__(self,failure_probability):
+        super(RandomFailPlan,self).__init__(failure_probability,0)
