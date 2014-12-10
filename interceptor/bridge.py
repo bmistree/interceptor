@@ -205,8 +205,9 @@ class _SendReceiveSocketPair(object):
                         self.bridge.down_up_connection(self.connection_phase_number)
                         break
 
-                    close_sockets = self.plan.recv(recv_data,self.socket_to_send_to)
-                    if close_sockets:
+                    recv_return = self.plan.recv(recv_data,self.socket_to_send_to)
+                    if recv_return is not None:
+                        time.sleep(recv_return)
                         self.bridge.down_up_connection(self.connection_phase_number)
                         break
                     

@@ -60,8 +60,9 @@ class Plan(object):
         Called when we read data from one socket and returns data to
         send to other socket.
 
-        @returns {boolean} --- True if should close socket.  False
-        otherwise.
+        @returns {float or None} --- If None, then should not close
+        socket.  If float, wait for this number of seconds and then
+        close the socket.
         '''
     def notify_closed(self):
         '''
@@ -72,12 +73,12 @@ class Plan(object):
 class PassThroughPlan(Plan):
     def recv(self,received_data,socket_to_send_data_to):
         socket_to_send_data_to.sendall(received_data)
-        return False
+        return None
 
     
 class DropPlan(Plan):
     def recv(self,received_data,socket_to_send_data_to):
-        return False
+        return None
 
 class DelayDataElement(object):
     def __init__(self,data,socket,received_time_seconds):
@@ -116,7 +117,7 @@ class DelayPlan(Plan):
                 # FIXME: assuming time.time will give me better than
                 # second accuracy.
                 time.time()))
-        return False
+        return None
 
 class ConstantDelayPlan(DelayPlan):
     def __init__(self,seconds_to_delay_before_forwarding):
@@ -190,6 +191,7 @@ class RandomFailPlan(Plan):
     def recv(self,received_data,socket_to_send_data_to):
         socket_to_send_data_to.sendall(received_data)
         if random.random() < self.failure_probability:
-            return True
+            # fail instantly
+            return 0
         
         return False

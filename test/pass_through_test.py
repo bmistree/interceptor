@@ -51,6 +51,8 @@ def run():
         interposition_host_port_pair,PassThroughPlan(),
         to_connect_to_host_port_pair,PassThroughPlan())
     bridge.non_blocking_connection_setup()
+
+    time.sleep(1)
     
     # now, try connecting to port on bridge.
     sending_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
