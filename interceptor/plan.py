@@ -1,6 +1,8 @@
 import time
 import random
 import argparse
+import Queue
+import threading
 
 def plan_from_args(plan_type,additional_args):
     '''
@@ -91,13 +93,10 @@ class DelayDataElement(object):
         
     
 class DelayPlan(Plan):
-    def __init__(self,seconds_to_delay_before_forwarding,
-                 sending_thread_target):
+    def __init__(self, sending_thread_target):
         '''
-        @param {float} seconds_to_delay_before_forwarding
+        @param {function} --- thread to start to handle sending 
         '''
-        self.seconds_to_delay_before_forwarding = (
-            seconds_to_delay_before_forwarding)
         # contains all data received so far, in order and the socket
         # to send the data out on when ready.
         self.data_queue = Queue.Queue()
