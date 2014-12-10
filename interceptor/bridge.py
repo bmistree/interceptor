@@ -65,10 +65,11 @@ class Bridge(object):
             self.bound_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.bound_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.bound_socket.bind(self.to_listen_on_host_port_pair.host_port_tuple())
-        
+
         # print 'Interceptor listening ' + str(self)
         self.bound_socket.listen(1)
         self.to_listen_on_socket, addr = self.bound_socket.accept()
+
         # print 'Interceptor accepted ' + str(self)
 
         l_onoff = 1
@@ -77,6 +78,8 @@ class Bridge(object):
             socket.SOL_SOCKET, socket.SO_LINGER,
             struct.pack('ii', l_onoff, l_linger))
 
+        self.to_listen_on_socket.setsockopt(
+            socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 
         # print (
         #     '\nInterceptor trying to connect to ' +
@@ -101,6 +104,9 @@ class Bridge(object):
         self.to_connect_to_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_LINGER,
             struct.pack('ii', l_onoff, l_linger))
+
+        self.to_connect_to_socket.setsockopt(
+            socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         
         with self.last_connection_lock:
             self.last_connection_phase_number = (
