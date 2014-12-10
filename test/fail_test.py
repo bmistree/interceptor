@@ -112,12 +112,17 @@ class ListenerConnection(threading.Thread):
             to_listen_on_socket, addr = s.accept()
             
             while True:
-                data = to_listen_on_socket.recv(1024)
-                if len(data) == 0:
-                    to_listen_on_socket.close()
+                try:
+                    data = to_listen_on_socket.recv(1024)
+                    if len(data) == 0:
+                        print '\nGot no data\n'
+                        break
+                    else:
+                        self.read_data += data
+                except:
                     break
-                else:
-                    self.read_data += data
+
+            to_listen_on_socket.close()
 
         print '\n\nOut of run\n\n\n'
         assert False

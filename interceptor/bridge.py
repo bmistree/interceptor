@@ -132,7 +132,6 @@ class Bridge(object):
 
         try:
             self.to_listen_on_socket.close()
-            print str(self) + ' closed ' + str(self.to_listen_on_socket)
         except:
             print 'Exception closing to listen on socket'
         
@@ -214,9 +213,8 @@ class _SendReceiveSocketPair(object):
         except Exception as inst:
             # can happen if someone closes the selctor pipe before we
             # go into select.
-            print 'Got an exception for ' + str(self.connection_phase_number)
-            print inst
             print (
-                'On bridge ' + str(self.bridge) + ' for socket ' +
+                '[DEBUG] Got an exception for ' + str(self.connection_phase_number) +
+                ' ' + str(inst) + ' on bridge ' + str(self.bridge) + ' for socket ' +
                 str(self.socket_to_send_to))
 
