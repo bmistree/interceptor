@@ -197,8 +197,7 @@ class RandomFailConstantDelayPlan(Plan):
         if random.random() < self.failure_probability:
             # fail instantly
             return self.seconds_to_wait_to_fail
-        
-        return False
+        return None
 
             
 class RandomFailPlan(RandomFailConstantDelayPlan):
